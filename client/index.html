@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>My Todo</title>
+  <script src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <script src="https://unpkg.com/vue"></script>
+  <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+  <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="index">
+    <nav class="navbar navbar-default">
+    <div class="container-fluid">
+      <div class="navbar-header">
+        <a class="navbar-brand" href="/">MyTodo</a>
+      </div>
+      <ul class="nav navbar-nav navbar-right navbar-color">
+        <li v-if="!isLogin"><a href="#" data-toggle="modal" data-target="#loginModal">Login</a></li>
+        <li v-if="!isLogin"><a href="#" data-toggle="modal" data-target="#registerModal">Register</a></li>
+        <li v-if="!isLogin"><a href="#" onclick="loginFB()">Login With FB</a></li>
+        <li v-if="isLogin"><a>Hello, {{ userName }}</a></li>
+        <li v-if="isLogin"><a href="#" @click="logout" href="/">Logout</a></li>
+      </ul>
+
+      <div id="loginModal" class="modal fade" role="dialog">
+        <div class="modal-dialog">
+
+          <div class="modal-content">
+            <div class="modal-header">
+              <button type="button" class="close" data-dismiss="modal">&times;</button>
+              <h4 class="modal-title">Login</h4>
+            </div>
+            <div class="modal-body">
+              <div class="form-group">
+                <label for="emailInput">Email</label>
+                <input type="text" class="form-control" v-model="emailLogin" placeholder="Input your email here...">
+              </div>
+              <div class="form-group">
+                <label for="passwordInput">Password</label>
+                <input type="password" class="form-control" v-model="passwordLogin" placeholder="Input your password here...">
+              </div>
+              <div id="login-alert"></div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-default" @click="login">Submit</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div id="registerModal" class="modal fade" role="dialog">
+        <div class="modal-dialog">
+
+          <div class="modal-content">
+            <div class="modal-header">
+              <button type="button" class="close" data-dismiss="modal">&times;</button>
+              <h4 class="modal-title">Register</h4>
+            </div>
+            <div class="modal-body">
+              <div class="form-group">
+                <label for="nameInput">Name</label>
+                <input type="text" class="form-control" v-model="nameReg" placeholder="Input your full name here...">
+              </div>
+              <div class="form-group">
+                <label for="emailInput">Email</label>
+                <input type="text" class="form-control" v-model="emailReg" placeholder="Input your email here...">
+              </div>
+              <div class="form-group">
+                <label for="passwordInput">Password</label>
+                <input type="password" class="form-control" v-model="passwordReg" placeholder="Input your password here...">
+              </div>
+              <div id="reg-alert"></div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-default" @click="register">Submit</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </nav>
+    <div class="container main">
+      <div class="row">
+      <div class="col-lg-12 add-todo">
+        <h3>Add new Todo</h3>
+        <input name="filterTitle" type="text" class="form-control" v-model="taskAdd" placeholder="Enter task description..." /><br>
+        <button v-on:click="addNewTodo" class="btn btn-primary">Submit</button>
+        <div id="alertNewTodo"></div>
+
+      </div>
+      <!-- <div class="col-lg-12">
+        <div>
+          <label for="filterTitle">Filter:</label>
+          <input name="filterTitle" type="text" class="form-control" v-model="filterTitle" placeholder="ketik judul atau status disini..." />
+        </div>
+      </div> -->
+      <template v-for="(todo, index) in todos">
+        <div class="col-lg-4 col-md-4 col-sm-4 col-xs-6 todos text-center">
+          <h3>{{todo.task}}</h3>
+          <p>Created: {{todo.created_at}}</p>
+          <p>by <b>{{todo.user.name}}</b></p>
+          <p class="bg-info">Status: {{todo.status}}</p>
+          <button v-if="isLogin" @click="completeTodo(todo.id, index)" class="btn-sm btn-primary">complete</button>
+          <button v-if="isLogin" @click="uncompleteTodo(todo.id, index)" class="btn-sm btn-warning">incomplete</button>
+          <button v-if="isLogin" @click="deleteTodo(todo.id, index)" class="btn-sm btn-danger">delete</button>
+        </div>
+      </template>
+      </div>
+    </div>
+
+  </div>
+
+
+
+  <script>
+    var appId;
+    axios.get('http://localhost:3000/appId')
+    .then(function(result) {
+      appId = result.data.appId;
+    })
+    window.fbAsyncInit = function() {
+      FB.init({
+        appId            : appId,
+        autoLogAppEvents : true,
+        xfbml            : true,
+        version          : 'v2.9'
+      });
+    };
+    (function(d, s, id){
+      var js, fjs = d.getElementsByTagName(s)[0];
+      if (d.getElementById(id)) {return;}
+      js = d.createElement(s); js.id = id;
+      js.src = "//connect.facebook.net/en_US/sdk.js";
+      fjs.parentNode.insertBefore(js, fjs);
+    }(document, 'script', 'facebook-jssdk'));
+    let loginFB = function() {
+      FB.login(function(response) {
+        FB.api('/me', {fields: 'id,name,email'}, function(response2) {
+          axios.post('http://localhost:3000/user',response2)
+          .then(result=>{
+            console.log(result);
+            localStorage.setItem('token',result.data.token);
+            localStorage.setItem('name', result.data.user.name);
+            localStorage.setItem('id', result.data.user._id);
+            app.checkLogin();
+          })
+          .catch(err=>{
+            console.log(err);
+          })
+        });
+      }, {scope:'public_profile email'});
+    }
+    var app = new Vue({
+      el: '#index',
+      data: {
+        isLogin: false,
+        userName: localStorage.getItem('name'),
+        nameReg: '',
+        emailReg: '',
+        passwordReg: '',
+        emailLogin: '',
+        passwordLogin: '',
+        taskAdd: '',
+        todos: [],
+      },
+      watch: {
+
+      },
+      methods: {
+        register: function() {
+          $('#reg-alert').empty()
+          if (!this.nameReg) {
+            $('#reg-alert').append(`<div class="alert alert-danger">Please input the name</div>`)
+          } else if (!this.emailReg) {
+            $('#reg-alert').append(`<div class="alert alert-danger">Please input the email address</div>`)
+          } else if (!this.passwordReg) {
+            $('#reg-alert').append(`<div class="alert alert-danger">Please input the password</div>`)
+          } else {
+            axios.post('http://localhost:3000/register',
+            {
+              name: this.nameReg,
+              email:this.emailReg,
+              password: this.passwordReg
+            })
+            .then(res => {
+              if (res.data.hasOwnProperty('message')) {
+                $('#reg-alert').append(`<div class="alert alert-danger">${res.data.message}</div>`)
+              } else {
+                $('#reg-alert').append(`<div class="alert alert-success">User ${res.data.name} registration succeeded</div>`)
+                window.location.href = '/';
+              }
+            })
+            .catch(err => {
+              console.log(err);
+              $('#reg-alert').append(`<div class="alert alert-danger">User registration failed</div>`)
+            })
+          }
+        },
+        login: function() {
+          $('#login-alert').empty()
+          if (!this.emailLogin) {
+            $('#login-alert').append(`<div class="alert alert-danger">Please input the email address</div>`)
+          } else if (!this.passwordLogin) {
+            $('#login-alert').append(`<div class="alert alert-danger">Please input the password</div>`)
+          } else {
+            axios.post('http://localhost:3000/login',
+            {
+              email:this.emailLogin,
+              password: this.passwordLogin
+            })
+            .then(res => {
+              if (res.data.hasOwnProperty('message')) {
+                $('#login-alert').append(`<div class="alert alert-danger">${res.data.message}</div>`)
+              } else {
+                $('#login-alert').append(`<div class="alert alert-success">User ${res.data.user.name} login succeeded</div>`)
+                localStorage.setItem('token',res.data.token);
+                localStorage.setItem('name', res.data.user.name);
+                localStorage.setItem('id', res.data.user._id);
+                this.checkLogin();
+                window.location.href = '/';
+              }
+            })
+            .catch(err => {
+              console.log(err);
+              $('#login-alert').append(`<div class="alert alert-danger">User login failed ${err}</div>`)
+            })
+          }
+        },
+        checkLogin: function() {
+          if (localStorage.getItem('token')) {
+            this.isLogin = true;
+          } else {
+            this.isLogin = false;
+          }
+        },
+        addNewTodo: function() {
+          $('#alertNewTodo').empty();
+          if(!this.isLogin) {
+            $('#alertNewTodo').append(`<div class="alert alert-danger">Please login first...</div>`)
+          } else {
+            if(!this.taskAdd) {
+              $('#alertNewTodo').append(`<div class="alert alert-danger">Enter task description</div>`)
+            } else {
+              axios.post('http://localhost:3000/todo',{
+                task: this.taskAdd
+              },{
+                headers: {token: localStorage.getItem('token')}
+              })
+              .then(res => {
+                console.log(res.data);
+              })
+              .catch(err => {
+                console.log(err);
+              })
+            }
+
+          }
+        },
+        completeTodo: function() {
+          axios.post('http://localhost:3000/todo',{
+            task: this.taskAdd
+          },{
+            headers: {token: localStorage.getItem('token')}
+          })
+          .then(res => {
+            console.log(res.data);
+
+          })
+          .catch(err => {
+            console.log(err);
+          })
+        },
+        getAllTodos: function() {
+          let url, self = this;
+          if (this.isLogin) {
+            let id = localStorage.getItem('id')
+            url = `http://localhost:3000/todo/user/${id}`
+          } else {
+            url = 'http://localhost:3000/todo'
+          }
+          axios.get(url, {headers: {token: localStorage.getItem('token')}})
+          .then(res => {
+            console.log(res.data);
+            self.todos = res.data;
+            console.log(self.todos);
+          })
+        },
+        logout: function() {
+          localStorage.clear();
+          this.checkLogin();
+        }
+      },
+      created: function() {
+        this.checkLogin();
+        this.getAllTodos();
+      },
+    })
+  </script>
+
+</body>
+</html>
